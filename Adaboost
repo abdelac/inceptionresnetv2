@@ -1,1 +1,110 @@
+import os,cv2
+import numpy as np
+import tensorflow as tf
+from PIL import Image
+from keras.applications.inception_resnet_v2 import preprocess_input
+from sklearn.preprocessing import LabelEncoder
+from tensorflow import keras
+from keras.applications import vgg16, VGG16
+from keras.preprocessing.image import ImageDataGenerator
+from sklearn.ensemble import AdaBoostClassifier, RandomForestClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
+from keras.utils import load_img, to_categorical, img_to_array
 
+# Assuming X contains the features and y contains the labels/targets
+
+# Step 1: Load and preprocess images ###################################################"
+# Train DATA
+src_path = 'dataset/train'
+
+
+# getting Train and Test DAtaset #################################################
+def getimagets (src_path):
+ # Initialize empty lists for features (X_train) and labels (y_train)
+ X_train = []
+ y_train = []
+ # Get a list of subdirectories (class labels)
+ class_labels = sorted(os.listdir(src_path))
+
+# Loop through each class label
+ for label_index, label in enumerate(class_labels):
+    class_dir = os.path.join(src_path, label)
+    # Loop through the images in each class directory
+    for image_filename in os.listdir(class_dir):
+        image_path = os.path.join(class_dir, image_filename)
+        img = load_img(image_path, target_size=(224, 224))  # Load and resize image
+        img = img_to_array(img)  # Convert image to numpy array
+        img = img / 255.0  # Normalize pixel values to be between 0 and 1
+        X_train.append(img)
+        y_train.append(label)  # Use label index as the class label
+ # Split the data into training and validation sets
+ X_train,X_val, Y_train , Y_val = train_test_split(X_train, y_train, test_size=0.1, random_state=42)
+ # Optionally, you can print the shapes to verify
+ X_train = np.array(X_train)
+ Y_train = np.array(Y_train)
+ X_val = np.array(X_val)
+ Y_val = np.array(Y_val)
+ return X_train,X_val, Y_train , Y_val
+##########################################################################################
+
+
+X_train,X_val, Y_train , Y_val=getimagets(src_path='dataset/train')
+#print('here',X_train)
+print('Training data shape X_train: ', X_train.shape)
+print('Training data shape y_train: ', Y_train.shape)
+print('Training data shape X_val : ', X_val.shape)
+print('Training data shape Y_val: ', Y_val.shape)
+# Step 5 and 6: AdaBoost with weak learner
+base_classifier = RandomForestClassifier()
+adaboost_classifier = AdaBoostClassifier(estimator=base_classifier, n_estimators=2, random_state=42)
+# changer Xtrain de 4D a 2D
+def flattentrain(X_train):
+ num_samples = X_train.shape[0]
+ num_features = X_train.shape[1] * X_train.shape[2] * X_train.shape[3]
+ X_train_flattened = X_train.reshape(num_samples, num_features)
+ return X_train_flattened
+X_train=flattentrain(X_train)
+X_val=flattentrain(X_val)
+print(X_val.shape)
+# Step 7: AdaBoost training
+adaboost_classifier.fit(X_train, Y_train)
+
+# Predict on the test set
+y_pred = adaboost_classifier.predict(X_val)
+
+# Calculate the accuracy
+accuracy = accuracy_score(Y_val, y_pred)
+print(f'Accuracy: {accuracy}')
+
+from keras.utils import load_img
+import keras.utils as image
+
+def imagetestingfr(img_path):
+ test_img=load_img(img_path, target_size=(224, 224))
+ test_img=image.img_to_array(test_img)
+ test_img = test_img / 255.0
+ test_img = np.array(test_img)
+ test_img=test_img.flatten()
+ test_img=test_img.reshape (1,-1)
+ #test_fl = int(test_img.flatten())
+ #shape = test_img.shape[1] * test_img.shape[2] * test_img.shape[0]
+ #test_img=test_img.reshape(test_img,224*224*3)
+ #test_img=test_img.flatten()
+ #test_img=np.expand_dims(test_img, axis=0)
+ #test_img=preprocess_input(test_img)
+
+ return test_img
+
+test_img=imagetestingfr("13.jpg")
+print('shp',test_img.shape)
+print(test_img)
+#test_img=(test_img,len(test_img))
+y_pred = adaboost_classifier.predict(test_img)
+print('lentre est un',(y_pred))
+
+#cc=flattentrain(cc)
+#y_p = adaboost_classifier.predict(cc)
+#print(y_p)
+#print(X_val)
